@@ -107,7 +107,8 @@ function renderThemeRanking(items) {
 
 function renderSubthemes(items) {
   const selectedTheme = document.querySelector("#theme-filter").value;
-  const subthemes = countBy(items, (item) => item.keywords).slice(0, 30);
+  const subthemes = countBy(items, (item) => item.keywords).slice(0, 18);
+  const max = subthemes[0]?.[1] ?? 1;
   const context = selectedTheme
     ? `${subthemes.length} keywords em ${selectedTheme}`
     : "Selecione um tema para ver os descritores";
@@ -116,17 +117,21 @@ function renderSubthemes(items) {
   document.querySelector("#subthemes-list").innerHTML = selectedTheme
     ? subthemes
         .map(
-          ([keyword, count]) => `
-            <button class="subtheme-chip" type="button" data-keyword="${escapeHtml(keyword)}">
-              ${escapeHtml(keyword)}
+          ([keyword, count]) => {
+            const height = Math.max(4, Math.round((count / max) * 190));
+            return `
+            <button class="subtheme-bar" type="button" data-keyword="${escapeHtml(keyword)}" title="${escapeHtml(keyword)}: ${count}">
               <strong>${count.toLocaleString("pt-BR")}</strong>
+              <span style="height:${height}px"></span>
+              <em>${escapeHtml(keyword)}</em>
             </button>
-          `,
+          `;
+          },
         )
         .join("") || `<p class="empty">Nao ha keywords oficiais para este recorte.</p>`
     : `<p class="empty">Escolha um tema no filtro ou na lista de temas oficiais.</p>`;
 
-  document.querySelectorAll("#subthemes-list .subtheme-chip").forEach((button) => {
+  document.querySelectorAll("#subthemes-list .subtheme-bar").forEach((button) => {
     button.addEventListener("click", () => {
       document.querySelector("#search").value = button.dataset.keyword;
       applyFilters();
@@ -145,19 +150,44 @@ function renderChart(items) {
   const labels = entries.map(([key]) => monthFormatter.format(new Date(`${key}-01T00:00:00Z`)));
   const values = entries.map(([, count]) => count);
   const max = Math.max(...values, 1);
-  document.querySelector("#monthly-chart").innerHTML = entries
-    .map((entry, index) => {
-      const value = values[index];
-      const height = Math.max(4, Math.round((value / max) * 230));
-      return `
-        <div class="month-bar" title="${escapeHtml(labels[index])}: ${value}">
-          <strong>${value}</strong>
-          <span style="height:${height}px"></span>
-          <em>${escapeHtml(labels[index])}</em>
-        </div>
-      `;
-    })
-    .join("");
+  const width = 760;
+  const height = 300;
+  const padding = { top: 24, right: 20, bottom: 46, left: 42 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const xStep = entries.length > 1 ? plotWidth / (entries.length - 1) : 0;
+  const points = values.map((value, index) => {
+    const x = padding.left + index * xStep;
+    const y = padding.top + plotHeight - (value / max) * plotHeight;
+    return { x, y, value, label: labels[index] };
+  });
+  const pointList = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const yTicks = [0, Math.round(max / 2), max];
+
+  document.querySelector("#monthly-chart").innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Serie mensal de proposicoes">
+      ${yTicks
+        .map((tick) => {
+          const y = padding.top + plotHeight - (tick / max) * plotHeight;
+          return `
+            <line class="grid-line" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>
+            <text x="8" y="${y + 4}">${tick}</text>
+          `;
+        })
+        .join("")}
+      <polyline class="series-line" points="${pointList}"></polyline>
+      ${points
+        .map(
+          (point, index) => `
+            <circle class="series-point" cx="${point.x}" cy="${point.y}" r="4">
+              <title>${escapeHtml(point.label)}: ${point.value}</title>
+            </circle>
+            <text x="${point.x}" y="${height - 18}" text-anchor="middle">${escapeHtml(labels[index].replace(" de ", "/"))}</text>
+          `,
+        )
+        .join("")}
+    </svg>
+  `;
 }
 
 function renderPropositions(items) {
@@ -196,12 +226,13 @@ function applyFilters() {
   const type = document.querySelector("#type-filter").value;
   const theme = document.querySelector("#theme-filter").value;
   const author = document.querySelector("#author-filter").value;
+  const normalizedAuthor = normalize(author);
 
   state.filtered = state.data.proposicoes.filter((item) => {
     if (year && String(item.ano) !== year) return false;
     if (type && item.siglaTipo !== type) return false;
     if (theme && !item.temas.includes(theme)) return false;
-    if (author && !item.autores.some((entry) => entry.nome === author)) return false;
+    if (normalizedAuthor && !item.autores.some((entry) => normalize(entry.nome).includes(normalizedAuthor))) return false;
     if (!query) return true;
     return item.searchText.includes(query);
   });
@@ -227,7 +258,9 @@ function hydrateFilters(data) {
   setOptions(document.querySelector("#year-filter"), years, "Todos");
   setLabeledOptions(document.querySelector("#type-filter"), typeEntries, "Todos");
   setOptions(document.querySelector("#theme-filter"), themes, "Todos");
-  setOptions(document.querySelector("#author-filter"), authors, "Todos");
+  document.querySelector("#author-options").innerHTML = authors
+    .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+    .join("");
 
   document.querySelectorAll("input, select").forEach((element) => {
     element.addEventListener("input", applyFilters);

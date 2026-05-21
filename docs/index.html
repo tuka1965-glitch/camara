@@ -40,7 +40,8 @@
         </label>
         <label>
           <span>Autor</span>
-          <select id="author-filter"></select>
+          <input id="author-filter" list="author-options" type="search" placeholder="Digite parte do nome" />
+          <datalist id="author-options"></datalist>
         </label>
       </section>
 
@@ -50,7 +51,7 @@
             <h2>Serie mensal</h2>
           </div>
           <div class="chart-shell">
-            <div id="monthly-chart" class="bar-chart" aria-label="Proposicoes por mes"></div>
+            <div id="monthly-chart" class="line-chart" aria-label="Proposicoes por mes"></div>
           </div>
         </section>
 
@@ -66,7 +67,7 @@
             <h2>Subtemas oficiais</h2>
             <span id="subthemes-context"></span>
           </div>
-          <div id="subthemes-list" class="subtheme-list"></div>
+          <div id="subthemes-list" class="subtheme-chart"></div>
         </section>
 
         <section class="panel wide">

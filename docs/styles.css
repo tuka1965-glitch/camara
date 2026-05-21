@@ -174,42 +174,38 @@ select {
   padding: 16px;
 }
 
-.bar-chart {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
-  align-items: end;
-  gap: 9px;
+.line-chart {
   min-height: 300px;
 }
 
-.month-bar {
-  display: grid;
-  align-items: end;
-  gap: 7px;
-  min-width: 0;
+.line-chart svg {
+  display: block;
+  width: 100%;
   height: 300px;
 }
 
-.month-bar strong {
-  color: var(--muted);
+.line-chart text {
+  fill: var(--muted);
   font-size: 11px;
-  font-weight: 600;
-  text-align: center;
 }
 
-.month-bar span {
-  display: block;
-  min-height: 4px;
-  border-radius: 5px 5px 0 0;
-  background: var(--accent);
+.line-chart .grid-line {
+  stroke: #edf1f5;
+  stroke-width: 1;
 }
 
-.month-bar em {
-  color: var(--muted);
-  font-size: 11px;
-  font-style: normal;
-  text-align: center;
-  white-space: nowrap;
+.line-chart .series-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.line-chart .series-point {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
 }
 
 .rank-list {
@@ -326,34 +322,59 @@ button.rank-item:hover .rank-name {
   background: #fbfcfd;
 }
 
-.subtheme-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
+.subtheme-chart {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+  align-items: end;
+  gap: 12px;
+  min-height: 300px;
   padding: 16px 18px 18px;
 }
 
-.subtheme-chip {
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: #fbfcfd;
-  color: var(--ink);
+.subtheme-bar {
+  display: grid;
+  align-items: end;
+  gap: 7px;
+  min-width: 0;
+  height: 270px;
+  border: 0;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
-  padding: 7px 10px;
+  padding: 0;
+  text-align: center;
 }
 
-.subtheme-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+.subtheme-bar span {
+  display: block;
+  min-height: 4px;
+  border-radius: 5px 5px 0 0;
+  background: var(--accent);
 }
 
-.subtheme-chip strong {
+.subtheme-bar strong {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  margin-left: 5px;
+}
+
+.subtheme-bar em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.2;
+  min-height: 38px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.subtheme-bar:hover span {
+  background: var(--good);
+}
+
+.subtheme-bar:hover em {
+  color: var(--ink);
 }
 
 .empty {
