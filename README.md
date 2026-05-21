@@ -19,7 +19,9 @@ Os dados sao baixados de:
 - `https://dadosabertos.camara.leg.br/arquivos/proposicoesTemas/csv/proposicoesTemas-{ano}.csv`
 - `https://dadosabertos.camara.leg.br/arquivos/proposicoesAutores/csv/proposicoesAutores-{ano}.csv`
 
-Anos iniciais: 2025 e 2026.
+Anos iniciais: 2025 e 2026. O gerador mantém apenas proposicoes com ementa,
+pois a ementa sera o primeiro insumo para classificacao tematica e futuros
+modelos BERT.
 
 ## Desenvolvimento local
 

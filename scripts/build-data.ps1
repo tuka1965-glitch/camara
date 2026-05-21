@@ -104,7 +104,8 @@ foreach ($year in $Years) {
   Import-Csv -Path $file -Delimiter ";" | ForEach-Object {
     $id = Get-PropositionId -Row $_
     $date = Get-DateOnly -Value (Get-FirstValue -Row $_ -Names @("dataApresentacao"))
-    if (-not $id -or -not $date) {
+    $ementa = Get-FirstValue -Row $_ -Names @("ementa")
+    if (-not $id -or -not $date -or [string]::IsNullOrWhiteSpace($ementa)) {
       return
     }
 
@@ -170,9 +171,6 @@ foreach ($year in $Years) {
 
       $author = New-Object PSObject
       $author | Add-Member -MemberType NoteProperty -Name "nome" -Value $name
-      $author | Add-Member -MemberType NoteProperty -Name "tipo" -Value (Get-FirstValue -Row $_ -Names @("tipoAutor", "tipo")).Trim()
-      $author | Add-Member -MemberType NoteProperty -Name "partido" -Value (Get-FirstValue -Row $_ -Names @("siglaPartidoAutor", "siglaPartido")).Trim()
-      $author | Add-Member -MemberType NoteProperty -Name "uf" -Value (Get-FirstValue -Row $_ -Names @("siglaUFAutor", "siglaUf")).Trim()
       [void] $authorsById[$id].Add($author)
     }
   }
@@ -203,7 +201,6 @@ foreach ($row in $selectedRows) {
 
   $proposal = New-Object PSObject
   $proposal | Add-Member -MemberType NoteProperty -Name "id" -Value $id
-  $proposal | Add-Member -MemberType NoteProperty -Name "uri" -Value (Get-FirstValue -Row $row -Names @("uri"))
   $proposal | Add-Member -MemberType NoteProperty -Name "siglaTipo" -Value (Get-FirstValue -Row $row -Names @("siglaTipo"))
   $proposal | Add-Member -MemberType NoteProperty -Name "numero" -Value (Get-FirstValue -Row $row -Names @("numero"))
   $proposal | Add-Member -MemberType NoteProperty -Name "ano" -Value ([int] $yearValue)
@@ -213,7 +210,6 @@ foreach ($row in $selectedRows) {
   $dataApresentacao = Get-DateOnly -Value (Get-FirstValue -Row $row -Names @("dataApresentacao"))
   $proposal | Add-Member -MemberType NoteProperty -Name "dataApresentacao" -Value $dataApresentacao
   $proposal | Add-Member -MemberType NoteProperty -Name "urlInteiroTeor" -Value (Get-FirstValue -Row $row -Names @("urlInteiroTeor", "linkInteiroTeor"))
-  $proposal | Add-Member -MemberType NoteProperty -Name "status" -Value (Get-FirstValue -Row $row -Names @("ultimoStatus_descricaoSituacao", "statusProposicao_descricaoSituacao", "descricaoSituacao"))
   $proposal | Add-Member -MemberType NoteProperty -Name "temas" -Value $themes
   $proposal | Add-Member -MemberType NoteProperty -Name "autores" -Value @($uniqueAuthors.ToArray())
   [void] $propositions.Add($proposal)
@@ -230,12 +226,12 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
   generatedAt = (Get-Date).ToUniversalTime().ToString("o")
   years = $Years
   sampling = [ordered]@{
-    strategy = "Amostra balanceada por mes"
+    strategy = "Amostra balanceada por mes, apenas proposicoes com ementa"
     rowsPerMonth = $RowsPerMonth
   }
   source = "Dados Abertos da Camara dos Deputados"
   typeDescriptions = $typeDescriptionsObject
   proposicoes = $orderedPropositions
-} | ConvertTo-Json -Depth 12 | Set-Content -Encoding UTF8 -Path $OutFile
+} | ConvertTo-Json -Depth 12 -Compress | Set-Content -Encoding UTF8 -Path $OutFile
 
 Write-Host "Geradas $($orderedPropositions.Count) proposicoes em $OutFile"
