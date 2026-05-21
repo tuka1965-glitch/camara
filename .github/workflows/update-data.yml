@@ -1,0 +1,23 @@
+name: Atualizar dados
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 8 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gerar base 2025-2026
+        shell: pwsh
+        run: ./scripts/build-data.ps1
+      - name: Commitar mudancas
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Atualiza dados da Camara"
+          file_pattern: docs/data/proposicoes.json

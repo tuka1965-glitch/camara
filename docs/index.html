@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Radar Legislativo - Camara dos Deputados</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Dados Abertos da Camara dos Deputados</p>
+          <h1>Radar Legislativo</h1>
+        </div>
+        <div class="metadata">
+          <span id="updated-at">Carregando dados...</span>
+          <a href="https://dadosabertos.camara.leg.br/" target="_blank" rel="noreferrer">Fonte publica</a>
+        </div>
+      </header>
+
+      <section id="summary" class="summary-grid" aria-label="Resumo"></section>
+
+      <section class="toolbar" aria-label="Filtros">
+        <label>
+          <span>Busca</span>
+          <input id="search" type="search" placeholder="Ementa, autor, palavra-chave, PL 123..." />
+        </label>
+        <label>
+          <span>Ano</span>
+          <select id="year-filter"></select>
+        </label>
+        <label>
+          <span>Tipo</span>
+          <select id="type-filter"></select>
+        </label>
+        <label>
+          <span>Tema</span>
+          <select id="theme-filter"></select>
+        </label>
+        <label>
+          <span>Autor</span>
+          <select id="author-filter"></select>
+        </label>
+      </section>
+
+      <section class="content-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Serie mensal</h2>
+          </div>
+          <div class="chart-shell">
+            <div id="monthly-chart" class="bar-chart" aria-label="Proposicoes por mes"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Temas oficiais</h2>
+          </div>
+          <div id="themes-list" class="rank-list"></div>
+        </section>
+
+        <section class="panel wide">
+          <div class="panel-header split">
+            <h2>Proposicoes</h2>
+            <span id="result-count"></span>
+          </div>
+          <div id="propositions" class="proposition-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
