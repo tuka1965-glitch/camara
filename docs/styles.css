@@ -164,6 +164,11 @@ select {
   font-size: 13px;
 }
 
+#subthemes-context {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .chart-shell {
   min-height: 340px;
   padding: 16px;
@@ -220,6 +225,22 @@ select {
   align-items: center;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
+}
+
+button.rank-item {
+  width: 100%;
+  border-right: 0;
+  border-left: 0;
+  border-top: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+button.rank-item:hover .rank-name {
+  color: var(--accent);
 }
 
 .rank-item:last-child {
@@ -303,6 +324,36 @@ select {
   border-radius: 999px;
   padding: 4px 8px;
   background: #fbfcfd;
+}
+
+.subtheme-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 16px 18px 18px;
+}
+
+.subtheme-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fbfcfd;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+}
+
+.subtheme-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.subtheme-chip strong {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 5px;
 }
 
 .empty {

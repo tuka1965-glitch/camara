@@ -88,14 +88,50 @@ function renderThemeRanking(items) {
   document.querySelector("#themes-list").innerHTML = themes
     .map(
       ([theme, count]) => `
-        <div class="rank-item">
+        <button class="rank-item" type="button" data-theme="${escapeHtml(theme)}">
           <span class="rank-name" title="${escapeHtml(theme)}">${escapeHtml(theme)}</span>
           <span class="rank-count">${count.toLocaleString("pt-BR")}</span>
           <div class="bar"><span style="width:${Math.max(4, (count / max) * 100)}%"></span></div>
-        </div>
+        </button>
       `,
     )
     .join("");
+
+  document.querySelectorAll("#themes-list .rank-item").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelector("#theme-filter").value = button.dataset.theme;
+      applyFilters();
+    });
+  });
+}
+
+function renderSubthemes(items) {
+  const selectedTheme = document.querySelector("#theme-filter").value;
+  const subthemes = countBy(items, (item) => item.keywords).slice(0, 30);
+  const context = selectedTheme
+    ? `${subthemes.length} keywords em ${selectedTheme}`
+    : "Selecione um tema para ver os descritores";
+
+  document.querySelector("#subthemes-context").textContent = context;
+  document.querySelector("#subthemes-list").innerHTML = selectedTheme
+    ? subthemes
+        .map(
+          ([keyword, count]) => `
+            <button class="subtheme-chip" type="button" data-keyword="${escapeHtml(keyword)}">
+              ${escapeHtml(keyword)}
+              <strong>${count.toLocaleString("pt-BR")}</strong>
+            </button>
+          `,
+        )
+        .join("") || `<p class="empty">Nao ha keywords oficiais para este recorte.</p>`
+    : `<p class="empty">Escolha um tema no filtro ou na lista de temas oficiais.</p>`;
+
+  document.querySelectorAll("#subthemes-list .subtheme-chip").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelector("#search").value = button.dataset.keyword;
+      applyFilters();
+    });
+  });
 }
 
 function renderChart(items) {
@@ -172,6 +208,7 @@ function applyFilters() {
 
   renderSummary(state.filtered);
   renderThemeRanking(state.filtered);
+  renderSubthemes(state.filtered);
   renderChart(state.filtered);
   renderPropositions(state.filtered);
 }
