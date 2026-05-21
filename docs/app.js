@@ -39,6 +39,16 @@ function setOptions(select, values, label) {
     .join("");
 }
 
+function setLabeledOptions(select, entries, label) {
+  select.innerHTML = [`<option value="">${label}</option>`]
+    .concat(
+      entries.map(
+        ([value, text]) => `<option value="${escapeHtml(value)}">${escapeHtml(text)}</option>`,
+      ),
+    )
+    .join("");
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -170,12 +180,15 @@ function hydrateFilters(data) {
   const years = [...new Set(data.proposicoes.map((item) => String(item.ano)))].sort();
   const types = [...new Set(data.proposicoes.map((item) => item.siglaTipo).filter(Boolean))].sort(collator.compare);
   const themes = [...new Set(data.proposicoes.flatMap((item) => item.temas))].sort(collator.compare);
+  const typeEntries = types.map((type) => {
+    const description = data.typeDescriptions?.[type];
+    return [type, description ? `${type} - ${description}` : type];
+  });
   const authors = countBy(data.proposicoes, (item) => item.autores.map((author) => author.nome))
-    .slice(0, 250)
     .map(([name]) => name);
 
   setOptions(document.querySelector("#year-filter"), years, "Todos");
-  setOptions(document.querySelector("#type-filter"), types, "Todos");
+  setLabeledOptions(document.querySelector("#type-filter"), typeEntries, "Todos");
   setOptions(document.querySelector("#theme-filter"), themes, "Todos");
   setOptions(document.querySelector("#author-filter"), authors, "Todos");
 
