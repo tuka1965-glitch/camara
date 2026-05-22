@@ -27,6 +27,7 @@ modelos BERT.
 
 ```powershell
 .\scripts\build-data.ps1
+.\scripts\build-topic-baseline.ps1
 python -m http.server 8080 -d docs
 ```
 
@@ -37,3 +38,12 @@ Depois abra `http://localhost:8080`.
 O diretorio `docs/` pode ser publicado diretamente no GitHub Pages. O workflow
 em `.github/workflows/update-data.yml` atualiza os dados diariamente e tambem
 pode ser executado manualmente pela aba Actions.
+
+## Laboratorio de temas
+
+O script `scripts/build-topic-baseline.ps1` gera `docs/data/topic-model.json`
+com um baseline lexical leve sobre `ementa + keywords oficiais`. Ele usa apenas
+tipos substantivos no primeiro teste (`PL`, `PLP`, `PEC`, `PDL`, `PRC`, `MPV`,
+`PLV` e `PLN`) para evitar que requerimentos e atos procedimentais dominem a
+clusterizacao. Esse baseline serve para validar o corpus antes de rodar
+BERTopic/embeddings.

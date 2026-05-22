@@ -1,6 +1,7 @@
 const state = {
   data: null,
   filtered: [],
+  topicModel: null,
 };
 
 const collator = new Intl.Collator("pt-BR");
@@ -220,6 +221,38 @@ function renderPropositions(items) {
     html || `<p class="empty">Nenhuma proposicao encontrada com os filtros atuais.</p>`;
 }
 
+function renderTopicClusters() {
+  const container = document.querySelector("#clusters-list");
+  const context = document.querySelector("#clusters-context");
+  if (!state.topicModel?.clusters?.length) {
+    context.textContent = "Aguardando geracao do modelo";
+    container.innerHTML = `<p class="empty">Ainda nao ha clusters gerados.</p>`;
+    return;
+  }
+
+  context.textContent = `${state.topicModel.clusters.length} clusters; ${state.topicModel.corpus.documents.toLocaleString("pt-BR")} ementas`;
+  container.innerHTML = state.topicModel.clusters
+    .slice(0, 12)
+    .map((cluster) => {
+      const terms = cluster.topTerms.slice(0, 6).map((term) => `<span class="chip">${escapeHtml(term)}</span>`).join("");
+      const themes = cluster.topThemes
+        .slice(0, 3)
+        .map((theme) => `${theme.name} (${theme.count})`)
+        .join(", ");
+      const example = cluster.examples[0]?.ementa ?? "";
+      return `
+        <article class="cluster-card">
+          <div class="cluster-meta">${cluster.count.toLocaleString("pt-BR")} proposicoes</div>
+          <h3>${escapeHtml(cluster.label)}</h3>
+          <div class="chip-row">${terms}</div>
+          <p>${escapeHtml(themes || "Sem tema oficial associado")}</p>
+          <p>${escapeHtml(example)}</p>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function applyFilters() {
   const query = normalize(document.querySelector("#search").value);
   const year = document.querySelector("#year-filter").value;
@@ -269,8 +302,12 @@ function hydrateFilters(data) {
 }
 
 async function main() {
-  const response = await fetch("./data/proposicoes.json", { cache: "no-store" });
+  const [response, topicResponse] = await Promise.all([
+    fetch("./data/proposicoes.json", { cache: "no-store" }),
+    fetch("./data/topic-model.json", { cache: "no-store" }).catch(() => null),
+  ]);
   const data = await response.json();
+  state.topicModel = topicResponse?.ok ? await topicResponse.json() : null;
   state.data = {
     ...data,
     proposicoes: data.proposicoes.map((item) => ({
@@ -291,6 +328,7 @@ async function main() {
   };
   document.querySelector("#updated-at").textContent = `Atualizado em ${formatDate(data.generatedAt.slice(0, 10))}`;
   hydrateFilters(state.data);
+  renderTopicClusters();
   applyFilters();
 }
 
