@@ -15,6 +15,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: requirements-bertopic.txt
       - name: Instalar dependencias
         run: python -m pip install -r requirements-bertopic.txt
       - name: Gerar topicos BERTopic
