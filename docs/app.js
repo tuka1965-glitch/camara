@@ -277,7 +277,10 @@ function renderChart(items) {
     const cursor = new Date(`${firstMonth}-01T00:00:00Z`);
     const end = new Date(`${lastMonth}-01T00:00:00Z`);
     while (cursor <= end) {
-      months.set(cursor.toISOString().slice(0, 7), 0);
+      const key = cursor.toISOString().slice(0, 7);
+      if (!months.has(key)) {
+        months.set(key, 0);
+      }
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
     }
   }
