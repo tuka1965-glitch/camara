@@ -3,6 +3,7 @@ const state = {
   filtered: [],
   topicModel: null,
   bertopicModel: null,
+  bertopicEvaluation: null,
   activeClusterModel: "official",
 };
 
@@ -369,7 +370,11 @@ function renderTopicClusters() {
     return;
   }
 
-  context.textContent = `${activeModel.clusters.length} clusters; ${activeModel.corpus.documents.toLocaleString("pt-BR")} ementas`;
+  const evaluationText =
+    activeModel === state.bertopicModel && state.bertopicEvaluation
+      ? `; pureza ${Math.round(state.bertopicEvaluation.weightedPurityAgainstOfficialThemes * 100)}%; cobertura ${Math.round(state.bertopicEvaluation.coverage * 100)}%`
+      : "";
+  context.textContent = `${activeModel.clusters.length} clusters; ${activeModel.corpus.documents.toLocaleString("pt-BR")} ementas${evaluationText}`;
   container.innerHTML = activeModel.clusters
     .slice(0, 12)
     .map((cluster) => {
@@ -441,14 +446,16 @@ function hydrateFilters(data) {
 }
 
 async function main() {
-  const [response, topicResponse, bertopicResponse] = await Promise.all([
+  const [response, topicResponse, bertopicResponse, evaluationResponse] = await Promise.all([
     fetch("./data/proposicoes.json", { cache: "no-store" }),
     fetch("./data/topic-model.json", { cache: "no-store" }).catch(() => null),
     fetch("./data/bertopic-model.json", { cache: "no-store" }).catch(() => null),
+    fetch("./data/bertopic-evaluation.json", { cache: "no-store" }).catch(() => null),
   ]);
   const data = await response.json();
   state.topicModel = topicResponse?.ok ? await topicResponse.json() : null;
   state.bertopicModel = bertopicResponse?.ok ? await bertopicResponse.json() : null;
+  state.bertopicEvaluation = evaluationResponse?.ok ? await evaluationResponse.json() : null;
   state.data = {
     ...data,
     proposicoes: data.proposicoes.map((item) => ({

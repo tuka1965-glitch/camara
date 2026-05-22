@@ -59,3 +59,10 @@ O workflow manual `.github/workflows/build-bertopic.yml` roda
 na atualizacao diaria porque baixa dependencias e embeddings grandes. Quando o
 arquivo existir, o painel mostra uma aba BERTopic ao lado do baseline por
 descritores oficiais.
+
+Depois do BERTopic, o workflow roda `scripts/evaluate-topic-model.ps1` e gera
+`docs/data/bertopic-evaluation.json`, comparando cada cluster ao tema oficial
+dominante da Camara. A metrica principal e pureza ponderada: ela indica a
+proporcao de proposicoes cujo cluster coincide com o tema oficial dominante do
+proprio cluster. Como uma proposicao pode ter mais de um tema oficial, essa
+comparacao e exploratoria, nao uma acuracia supervisionada estrita.
