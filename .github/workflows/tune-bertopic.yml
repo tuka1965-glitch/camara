@@ -1,0 +1,27 @@
+name: Tunear BERTopic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tune-bertopic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements-bertopic.txt
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements-bertopic.txt
+      - name: Rodar tuning BERTopic
+        run: python scripts/tune-bertopic.py
+      - name: Commitar resultado
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Atualiza tuning BERTopic"
+          file_pattern: docs/data/bertopic-tuning.json

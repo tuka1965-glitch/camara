@@ -5,6 +5,7 @@ const state = {
   bertopicModel: null,
   bertopicEvaluation: null,
   bertopicCrossEntropy: null,
+  bertopicTuning: null,
   activeClusterModel: "official",
 };
 
@@ -460,6 +461,59 @@ function renderTopicClusters() {
     .join("");
 }
 
+function renderTuningTable() {
+  const context = document.querySelector("#tuning-context");
+  const container = document.querySelector("#tuning-table");
+  const rows = state.bertopicTuning?.configs ?? [];
+
+  if (!rows.length) {
+    context.textContent = "Aguardando workflow de tuning";
+    container.innerHTML = `<p class="empty">Rode o workflow manual Tunear BERTopic para gerar a tabela comparativa.</p>`;
+    return;
+  }
+
+  const best = rows.reduce((winner, row) =>
+    row.crossEntropyNats < winner.crossEntropyNats ? row : winner,
+  rows[0]);
+  context.textContent = `${rows.length} configuracoes; melhor: ${best.name}`;
+
+  container.innerHTML = `
+    <table class="metric-table">
+      <thead>
+        <tr>
+          <th>Configuracao</th>
+          <th>Clusters</th>
+          <th>Outliers</th>
+          <th>Pureza</th>
+          <th>Entropia</th>
+          <th>Perplexidade</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows
+          .slice()
+          .sort((a, b) => a.crossEntropyNats - b.crossEntropyNats)
+          .map(
+            (row) => `
+              <tr class="${row.name === best.name ? "is-best" : ""}">
+                <td>
+                  <strong>${escapeHtml(row.name)}</strong>
+                  <span>min_topic ${escapeHtml(row.min_topic_size)}; min_df ${escapeHtml(row.min_df)}; max_df ${escapeHtml(row.max_df)}; nr ${escapeHtml(row.nr_topics)}</span>
+                </td>
+                <td>${row.clusters.toLocaleString("pt-BR")}</td>
+                <td>${row.outliers.toLocaleString("pt-BR")}</td>
+                <td>${Math.round(row.weightedPurity * 100)}%</td>
+                <td>${row.crossEntropyNats.toLocaleString("pt-BR")}</td>
+                <td>${row.perplexity.toLocaleString("pt-BR")}</td>
+              </tr>
+            `,
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
 function applyFilters() {
   const query = normalize(document.querySelector("#search").value);
   const year = document.querySelector("#year-filter").value;
@@ -482,6 +536,7 @@ function applyFilters() {
   renderSubthemes(state.filtered);
   renderChart(state.filtered);
   renderTopicClusters();
+  renderTuningTable();
   renderPropositions(state.filtered);
 }
 
@@ -510,18 +565,20 @@ function hydrateFilters(data) {
 }
 
 async function main() {
-  const [response, topicResponse, bertopicResponse, evaluationResponse, crossEntropyResponse] = await Promise.all([
+  const [response, topicResponse, bertopicResponse, evaluationResponse, crossEntropyResponse, tuningResponse] = await Promise.all([
     fetch("./data/proposicoes.json", { cache: "no-store" }),
     fetch("./data/topic-model.json", { cache: "no-store" }).catch(() => null),
     fetch("./data/bertopic-model.json", { cache: "no-store" }).catch(() => null),
     fetch("./data/bertopic-evaluation.json", { cache: "no-store" }).catch(() => null),
     fetch("./data/bertopic-cross-entropy.json", { cache: "no-store" }).catch(() => null),
+    fetch("./data/bertopic-tuning.json", { cache: "no-store" }).catch(() => null),
   ]);
   const data = await response.json();
   state.topicModel = topicResponse?.ok ? await topicResponse.json() : null;
   state.bertopicModel = bertopicResponse?.ok ? await bertopicResponse.json() : null;
   state.bertopicEvaluation = evaluationResponse?.ok ? await evaluationResponse.json() : null;
   state.bertopicCrossEntropy = crossEntropyResponse?.ok ? await crossEntropyResponse.json() : null;
+  state.bertopicTuning = tuningResponse?.ok ? await tuningResponse.json() : null;
   state.data = {
     ...data,
     proposicoes: data.proposicoes.map((item) => ({
