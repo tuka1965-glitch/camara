@@ -82,7 +82,7 @@ def topic_label(topic_model, topic_id):
 
 
 def main():
-    data = json.loads(INPUT_FILE.read_text(encoding="utf-8"))
+    data = json.loads(INPUT_FILE.read_text(encoding="utf-8-sig"))
     records = [
         item
         for item in data["proposicoes"]
