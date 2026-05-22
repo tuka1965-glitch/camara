@@ -92,6 +92,7 @@ $selectedRows = New-Object System.Collections.ArrayList
 $selectedIds = New-Object System.Collections.Generic.HashSet[string]
 $typeDescriptions = @{}
 $monthCounts = @{}
+$monthlyTotals = @{}
 $yearSet = New-Object System.Collections.Generic.HashSet[string]
 foreach ($year in $Years) {
   [void] $yearSet.Add([string] $year)
@@ -115,6 +116,11 @@ foreach ($year in $Years) {
     }
 
     $month = $date.Substring(0, 7)
+    if (-not $monthlyTotals.ContainsKey($month)) {
+      $monthlyTotals[$month] = 0
+    }
+    $monthlyTotals[$month] += 1
+
     if (-not $monthCounts.ContainsKey($month)) {
       $monthCounts[$month] = 0
     }
@@ -220,6 +226,9 @@ $typeDescriptionsObject = New-Object PSObject
 foreach ($key in ($typeDescriptions.Keys | Sort-Object)) {
   $typeDescriptionsObject | Add-Member -MemberType NoteProperty -Name $key -Value $typeDescriptions[$key]
 }
+$monthlyTotalsRows = @($monthlyTotals.Keys | Sort-Object | ForEach-Object {
+  [ordered]@{ month = $_; count = $monthlyTotals[$_] }
+})
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 [ordered]@{
@@ -230,6 +239,7 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
     rowsPerMonth = $RowsPerMonth
   }
   source = "Dados Abertos da Camara dos Deputados"
+  monthlyTotals = $monthlyTotalsRows
   typeDescriptions = $typeDescriptionsObject
   proposicoes = $orderedPropositions
 } | ConvertTo-Json -Depth 12 -Compress | Set-Content -Encoding UTF8 -Path $OutFile

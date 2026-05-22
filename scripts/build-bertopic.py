@@ -132,6 +132,7 @@ def main():
                 "label": topic_label(topic_model, topic_id),
                 "topicId": int(topic_id),
                 "count": int(count),
+                "memberIds": [records[index]["id"] for index in members],
                 "topTerms": [term for term, _ in topic_model.get_topic(topic_id)[:8]],
                 "topThemes": [
                     {"name": name, "count": int(value)}

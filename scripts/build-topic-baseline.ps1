@@ -14,7 +14,8 @@ $GenericDescriptors = New-Object System.Collections.Generic.HashSet[string]
   "programa", "dezembro", "pessoa", "servico", "servicos", "oficial",
   "parecer", "aprovacao", "submete", "constante", "congresso", "susta",
   "resolucao", "requerimento", "retirada", "pauta", "votacao", "nominal",
-  "informacoes", "ministro", "ministra", "materia", "plenario", "comissao"
+  "informacoes", "ministro", "ministra", "materia", "plenario", "comissao",
+  "politica publica", "politicas publicas", "pola tica pa blica"
 ) | ForEach-Object { [void] $GenericDescriptors.Add($_) }
 
 $Stopwords = New-Object System.Collections.Generic.HashSet[string]
@@ -190,10 +191,12 @@ foreach ($descriptorKey in ($clusters.Keys | Sort-Object)) {
   $examples = @($members | Select-Object -First 5 | ForEach-Object {
     [ordered]@{ id = $_.id; sigla = $_.sigla; ementa = $_.ementa }
   })
+  $memberIds = @($members | ForEach-Object { $_.id })
 
   [void] $clusterObjects.Add([ordered]@{
     label = $descriptorDisplay[$descriptorKey]
     count = $members.Count
+    memberIds = $memberIds
     topTerms = $topDescriptors
     topThemes = $topThemes
     examples = $examples

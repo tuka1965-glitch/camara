@@ -45,6 +45,8 @@ const genericDescriptors = new Set([
   "materia",
   "plenario",
   "comissao",
+  "politica publica",
+  "politicas publicas",
 ]);
 const descriptorStopwords = new Set([
   "sobre",
@@ -259,7 +261,28 @@ function renderSubthemes(items) {
 
 function renderChart(items) {
   const months = new Map();
+  const isFullBase = state.data && items.length === state.data.proposicoes.length;
+  if (isFullBase && state.data.monthlyTotals?.length) {
+    for (const entry of state.data.monthlyTotals) {
+      months.set(entry.month, entry.count);
+    }
+  }
+  const allMonths = state.data.proposicoes
+    .map((item) => item.dataApresentacao?.slice(0, 7))
+    .filter(Boolean)
+    .sort();
+  const firstMonth = allMonths[0];
+  const lastMonth = allMonths[allMonths.length - 1];
+  if (firstMonth && lastMonth) {
+    const cursor = new Date(`${firstMonth}-01T00:00:00Z`);
+    const end = new Date(`${lastMonth}-01T00:00:00Z`);
+    while (cursor <= end) {
+      months.set(cursor.toISOString().slice(0, 7), 0);
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  }
   for (const item of items) {
+    if (isFullBase && state.data.monthlyTotals?.length) continue;
     if (!item.dataApresentacao) continue;
     const key = item.dataApresentacao.slice(0, 7);
     months.set(key, (months.get(key) ?? 0) + 1);
@@ -338,6 +361,28 @@ function renderPropositions(items) {
     html || `<p class="empty">Nenhuma proposicao encontrada com os filtros atuais.</p>`;
 }
 
+function filteredCluster(cluster, selectedIds) {
+  if (!cluster.memberIds?.length) {
+    return cluster;
+  }
+
+  const memberSet = new Set(cluster.memberIds.map(String));
+  const count = selectedIds.reduce((total, id) => total + (memberSet.has(String(id)) ? 1 : 0), 0);
+  if (count === 0) {
+    return null;
+  }
+
+  const scale = count / cluster.memberIds.length;
+  return {
+    ...cluster,
+    count,
+    topThemes: cluster.topThemes.map((theme) => ({
+      ...theme,
+      count: Math.max(1, Math.round(theme.count * scale)),
+    })),
+  };
+}
+
 function renderTopicClusters() {
   const container = document.querySelector("#clusters-list");
   const context = document.querySelector("#clusters-context");
@@ -374,8 +419,16 @@ function renderTopicClusters() {
     activeModel === state.bertopicModel && state.bertopicEvaluation
       ? `; pureza ${Math.round(state.bertopicEvaluation.weightedPurityAgainstOfficialThemes * 100)}%; cobertura ${Math.round(state.bertopicEvaluation.coverage * 100)}%`
       : "";
-  context.textContent = `${activeModel.clusters.length} clusters; ${activeModel.corpus.documents.toLocaleString("pt-BR")} ementas${evaluationText}`;
-  container.innerHTML = activeModel.clusters
+  const selectedIds = state.filtered.map((item) => item.id);
+  const filteredClusters = activeModel.clusters
+    .map((cluster) => filteredCluster(cluster, selectedIds))
+    .filter(Boolean)
+    .sort((a, b) => b.count - a.count);
+  const filteredDocuments = filteredClusters.reduce((total, cluster) => total + cluster.count, 0);
+  const isFiltered = state.data && selectedIds.length !== state.data.proposicoes.length;
+
+  context.textContent = `${filteredClusters.length} clusters; ${filteredDocuments.toLocaleString("pt-BR")} proposicoes no recorte${evaluationText}${isFiltered ? "" : "; base completa"}`;
+  container.innerHTML = filteredClusters
     .slice(0, 12)
     .map((cluster) => {
       const terms = cluster.topTerms.slice(0, 6).map((term) => `<span class="chip">${escapeHtml(term)}</span>`).join("");
@@ -418,6 +471,7 @@ function applyFilters() {
   renderThemeRanking(state.filtered);
   renderSubthemes(state.filtered);
   renderChart(state.filtered);
+  renderTopicClusters();
   renderPropositions(state.filtered);
 }
 
@@ -476,7 +530,6 @@ async function main() {
   };
   document.querySelector("#updated-at").textContent = `Atualizado em ${formatDate(data.generatedAt.slice(0, 10))}`;
   hydrateFilters(state.data);
-  renderTopicClusters();
   applyFilters();
 }
 
