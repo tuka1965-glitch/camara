@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $Years = @(2025, 2026)
-$RowsPerMonth = 1000
+$RowsPerMonth = 10000
 $BaseUrl = "http://dadosabertos.camara.leg.br/arquivos"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $OutDir = Join-Path $Root "docs\data"
