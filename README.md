@@ -42,8 +42,8 @@ pode ser executado manualmente pela aba Actions.
 ## Laboratorio de temas
 
 O script `scripts/build-topic-baseline.ps1` gera `docs/data/topic-model.json`
-com um baseline lexical leve sobre `ementa + keywords oficiais`. Ele usa apenas
-tipos substantivos no primeiro teste (`PL`, `PLP`, `PEC`, `PDL`, `PRC`, `MPV`,
-`PLV` e `PLN`) para evitar que requerimentos e atos procedimentais dominem a
-clusterizacao. Esse baseline serve para validar o corpus antes de rodar
-BERTopic/embeddings.
+com um baseline leve baseado em descritores oficiais compostos extraidos de
+`ementa + keywords oficiais`. Ele usa apenas tipos substantivos no primeiro
+teste (`PL`, `PLP`, `PEC`, `PDL`, `PRC`, `MPV`, `PLV` e `PLN`) para evitar que
+requerimentos e atos procedimentais dominem a clusterizacao. Esse baseline serve
+para validar o corpus antes de rodar BERTopic/embeddings.

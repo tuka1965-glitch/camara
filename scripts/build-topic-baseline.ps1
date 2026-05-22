@@ -3,26 +3,29 @@ $ErrorActionPreference = "Stop"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $InputFile = Join-Path $Root "docs\data\proposicoes.json"
 $OutFile = Join-Path $Root "docs\data\topic-model.json"
+
 $ModelTypes = New-Object System.Collections.Generic.HashSet[string]
 @("PL", "PLP", "PEC", "PDL", "PRC", "MPV", "PLV", "PLN") | ForEach-Object { [void] $ModelTypes.Add($_) }
+
+$GenericDescriptors = New-Object System.Collections.Generic.HashSet[string]
+@(
+  "alteracao", "criacao", "criterio", "diretrizes", "obrigatoriedade",
+  "proibicao", "sustacao", "lei federal", "decreto legislativo", "lei",
+  "programa", "dezembro", "pessoa", "servico", "servicos", "oficial",
+  "parecer", "aprovacao", "submete", "constante", "congresso", "susta",
+  "resolucao", "requerimento", "retirada", "pauta", "votacao", "nominal",
+  "informacoes", "ministro", "ministra", "materia", "plenario", "comissao"
+) | ForEach-Object { [void] $GenericDescriptors.Add($_) }
 
 $Stopwords = New-Object System.Collections.Generic.HashSet[string]
 @(
   "sobre", "para", "pela", "pelo", "pelos", "pelas", "como", "esta", "este",
-  "essa", "esse", "aquele", "aquela", "dispõe", "dispoe", "altera", "alteração",
-  "alteracao", "federal", "nacional", "brasil", "brasileiro", "brasileira",
-  "providências", "providencias", "outras", "forma", "termos", "institui",
-  "estabelece", "cria", "fica", "lei", "projeto", "decreto", "legislativo",
-  "complementar", "constituição", "constituicao", "código", "codigo", "artigo",
-  "inciso", "parágrafo", "paragrafo", "redação", "redacao", "âmbito", "ambito",
-  "união", "uniao", "estado", "municipio", "município", "pública", "publica",
-  "público", "publico", "administracao", "administração", "requer",
-  "requerimento", "requerimentos", "solicita", "informacoes", "informação",
-  "informacao", "pauta", "retirada", "votacao", "votação", "nominal",
-  "adiamento", "sessao", "sessão", "solene", "audiencia", "audiência",
-  "ministro", "ministra", "apreciacao", "apreciação", "materia", "matéria",
-  "realizacao", "realização", "convite", "urgencia", "urgência", "tramitação",
-  "tramitacao", "plenário", "plenario", "comissão", "comissao"
+  "essa", "esse", "aquele", "aquela", "dispoe", "altera", "alteracao",
+  "federal", "nacional", "brasil", "brasileiro", "brasileira", "providencias",
+  "outras", "forma", "termos", "institui", "estabelece", "cria", "fica",
+  "lei", "projeto", "decreto", "legislativo", "complementar", "constituicao",
+  "codigo", "artigo", "inciso", "paragrafo", "redacao", "ambito", "uniao",
+  "estado", "municipio", "publica", "publico", "administracao"
 ) | ForEach-Object { [void] $Stopwords.Add($_) }
 
 function Normalize-Text {
@@ -39,44 +42,70 @@ function Normalize-Text {
       [void] $builder.Append($char)
     }
   }
-  return $builder.ToString()
+  return ($builder.ToString() -replace "[^a-z0-9 ]+", " " -replace "\s+", " ").Trim()
 }
 
-function Get-Tokens {
-  param([object] $Proposition)
+function Get-InformativeTokens {
+  param([string] $Value)
 
-  $text = Normalize-Text -Value (($Proposition.ementa + " " + (($Proposition.keywords | ForEach-Object { $_ }) -join " ")))
+  $normalized = Normalize-Text -Value $Value
   return @(
-    [regex]::Matches($text, "[a-z0-9]{4,}") |
+    [regex]::Matches($normalized, "[a-z0-9]{4,}") |
       ForEach-Object { $_.Value } |
       Where-Object { -not $Stopwords.Contains($_) -and -not ($_ -match "^\d+$") }
   )
 }
 
+function Get-Descriptors {
+  param([object] $Proposition)
+
+  $items = New-Object System.Collections.ArrayList
+  foreach ($keyword in $Proposition.keywords) {
+    $display = (([string] $keyword).Trim() -replace "^_+", "" -replace "[\.;:,\s]+$", "")
+    $normalized = Normalize-Text -Value $display
+    $tokens = @(Get-InformativeTokens -Value $display)
+
+    if (-not $display -or -not $normalized -or $GenericDescriptors.Contains($normalized)) {
+      continue
+    }
+
+    if ($tokens.Count -lt 2) {
+      continue
+    }
+
+    [void] $items.Add([ordered]@{
+      display = $display
+      normalized = $normalized
+      tokens = $tokens
+    })
+  }
+  return @($items)
+}
+
 $data = Get-Content -Raw -LiteralPath $InputFile | ConvertFrom-Json
 $docs = New-Object System.Collections.ArrayList
-$documentFrequency = @{}
+$descriptorFrequency = @{}
+$descriptorDisplay = @{}
 
 foreach ($proposition in $data.proposicoes) {
   if (-not $ModelTypes.Contains([string] $proposition.siglaTipo)) {
     continue
   }
 
-  $tokens = @(Get-Tokens -Proposition $proposition)
-  if ($tokens.Count -eq 0) {
+  $descriptors = @(Get-Descriptors -Proposition $proposition)
+  if ($descriptors.Count -eq 0) {
     continue
   }
 
-  $unique = New-Object System.Collections.Generic.HashSet[string]
-  foreach ($token in $tokens) {
-    [void] $unique.Add($token)
-  }
-
-  foreach ($token in $unique) {
-    if (-not $documentFrequency.ContainsKey($token)) {
-      $documentFrequency[$token] = 0
+  $seenDescriptors = New-Object System.Collections.Generic.HashSet[string]
+  foreach ($descriptor in $descriptors) {
+    if ($seenDescriptors.Add($descriptor.normalized)) {
+      if (-not $descriptorFrequency.ContainsKey($descriptor.normalized)) {
+        $descriptorFrequency[$descriptor.normalized] = 0
+        $descriptorDisplay[$descriptor.normalized] = $descriptor.display
+      }
+      $descriptorFrequency[$descriptor.normalized] += 1
     }
-    $documentFrequency[$token] += 1
   }
 
   $doc = New-Object PSObject
@@ -84,63 +113,62 @@ foreach ($proposition in $data.proposicoes) {
   $doc | Add-Member -MemberType NoteProperty -Name "sigla" -Value "$($proposition.siglaTipo) $($proposition.numero)/$($proposition.ano)"
   $doc | Add-Member -MemberType NoteProperty -Name "ementa" -Value $proposition.ementa
   $doc | Add-Member -MemberType NoteProperty -Name "temas" -Value @($proposition.temas)
-  $doc | Add-Member -MemberType NoteProperty -Name "tokens" -Value $tokens
+  $doc | Add-Member -MemberType NoteProperty -Name "descriptors" -Value $descriptors
   [void] $docs.Add($doc)
 }
 
-$clusterTerms = @(
-  $documentFrequency.GetEnumerator() |
-    Where-Object { $_.Value -ge 8 -and $_.Value -le [Math]::Max(20, [Math]::Floor($docs.Count * 0.25)) } |
+$clusterDescriptors = @(
+  $descriptorFrequency.GetEnumerator() |
+    Where-Object { $_.Value -ge 3 -and $_.Value -le [Math]::Max(8, [Math]::Floor($docs.Count * 0.18)) } |
     Sort-Object -Property Value -Descending |
-    Select-Object -First 14
+    Select-Object -First 18
 )
 
 $clusters = @{}
-foreach ($term in $clusterTerms) {
-  $clusters[$term.Key] = New-Object System.Collections.ArrayList
+foreach ($descriptor in $clusterDescriptors) {
+  $clusters[$descriptor.Key] = New-Object System.Collections.ArrayList
 }
 
 foreach ($doc in $docs) {
-  $tokenCounts = @{}
-  foreach ($token in $doc.tokens) {
-    if (-not $tokenCounts.ContainsKey($token)) {
-      $tokenCounts[$token] = 0
-    }
-    $tokenCounts[$token] += 1
-  }
-
-  $bestTerm = $null
+  $bestDescriptor = $null
   $bestScore = 0
-  foreach ($term in $clusterTerms) {
-    if ($tokenCounts.ContainsKey($term.Key)) {
-      $score = $tokenCounts[$term.Key] / [Math]::Log(2 + $term.Value)
-      if ($score -gt $bestScore) {
-        $bestScore = $score
-        $bestTerm = $term.Key
-      }
+  foreach ($descriptor in $doc.descriptors) {
+    if (-not $descriptorFrequency.ContainsKey($descriptor.normalized)) {
+      continue
+    }
+    if (-not $clusters.ContainsKey($descriptor.normalized)) {
+      continue
+    }
+
+    $tokenBoost = [Math]::Min(2.2, 1 + ($descriptor.tokens.Count * 0.25))
+    $score = $tokenBoost / [Math]::Log(2 + $descriptorFrequency[$descriptor.normalized])
+    if ($score -gt $bestScore) {
+      $bestScore = $score
+      $bestDescriptor = $descriptor.normalized
     }
   }
 
-  if ($bestTerm) {
-    [void] $clusters[$bestTerm].Add($doc)
+  if ($bestDescriptor) {
+    [void] $clusters[$bestDescriptor].Add($doc)
   }
 }
 
 $clusterObjects = New-Object System.Collections.ArrayList
-foreach ($term in ($clusters.Keys | Sort-Object)) {
-  $members = @($clusters[$term])
-  if ($members.Count -lt 4) {
+foreach ($descriptorKey in ($clusters.Keys | Sort-Object)) {
+  $members = @($clusters[$descriptorKey])
+  if ($members.Count -lt 3) {
     continue
   }
 
-  $termCounts = @{}
+  $descriptorCounts = @{}
   $themeCounts = @{}
   foreach ($member in $members) {
-    foreach ($token in $member.tokens) {
-      if (-not $termCounts.ContainsKey($token)) {
-        $termCounts[$token] = 0
+    foreach ($descriptor in $member.descriptors) {
+      if (-not $descriptorCounts.ContainsKey($descriptor.normalized)) {
+        $descriptorCounts[$descriptor.normalized] = 0
+        $descriptorDisplay[$descriptor.normalized] = $descriptor.display
       }
-      $termCounts[$token] += 1
+      $descriptorCounts[$descriptor.normalized] += 1
     }
     foreach ($theme in $member.temas) {
       if (-not $themeCounts.ContainsKey($theme)) {
@@ -150,7 +178,12 @@ foreach ($term in ($clusters.Keys | Sort-Object)) {
     }
   }
 
-  $topTerms = @($termCounts.GetEnumerator() | Sort-Object -Property Value -Descending | Select-Object -First 8 | ForEach-Object { $_.Key })
+  $topDescriptors = @(
+    $descriptorCounts.GetEnumerator() |
+      Sort-Object -Property Value -Descending |
+      Select-Object -First 8 |
+      ForEach-Object { $descriptorDisplay[$_.Key] }
+  )
   $topThemes = @($themeCounts.GetEnumerator() | Sort-Object -Property Value -Descending | Select-Object -First 5 | ForEach-Object {
     [ordered]@{ name = $_.Key; count = $_.Value }
   })
@@ -159,9 +192,9 @@ foreach ($term in ($clusters.Keys | Sort-Object)) {
   })
 
   [void] $clusterObjects.Add([ordered]@{
-    label = $term
+    label = $descriptorDisplay[$descriptorKey]
     count = $members.Count
-    topTerms = $topTerms
+    topTerms = $topDescriptors
     topThemes = $topThemes
     examples = $examples
   })
@@ -171,7 +204,7 @@ $orderedClusters = @($clusterObjects | Sort-Object -Property count -Descending)
 
 [ordered]@{
   generatedAt = (Get-Date).ToUniversalTime().ToString("o")
-  method = "Baseline lexical leve sobre ementa + keywords oficiais"
+  method = "Baseline por descritores oficiais compostos sobre ementa + keywords"
   corpus = [ordered]@{
     documents = $docs.Count
     source = "docs/data/proposicoes.json"
