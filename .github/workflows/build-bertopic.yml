@@ -23,8 +23,11 @@ jobs:
       - name: Avaliar contra temas oficiais
         shell: pwsh
         run: ./scripts/evaluate-topic-model.ps1
+      - name: Calcular entropia cruzada
+        shell: pwsh
+        run: ./scripts/evaluate-topic-cross-entropy.ps1
       - name: Commitar resultado
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Atualiza topicos BERTopic"
-          file_pattern: docs/data/bertopic-model.json docs/data/bertopic-evaluation.json
+          file_pattern: docs/data/bertopic-model.json docs/data/bertopic-evaluation.json docs/data/bertopic-cross-entropy.json
