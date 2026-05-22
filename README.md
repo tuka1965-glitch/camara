@@ -47,3 +47,15 @@ com um baseline leve baseado em descritores oficiais compostos extraidos de
 teste (`PL`, `PLP`, `PEC`, `PDL`, `PRC`, `MPV`, `PLV` e `PLN`) para evitar que
 requerimentos e atos procedimentais dominem a clusterizacao. Esse baseline serve
 para validar o corpus antes de rodar BERTopic/embeddings.
+
+Os subtemas oficiais exibidos no painel usam o mesmo filtro de descritores:
+termos genericos, procedimentais ou pouco substantivos sao descartados antes da
+ordenacao por frequencia.
+
+## BERTopic
+
+O workflow manual `.github/workflows/build-bertopic.yml` roda
+`scripts/build-bertopic.py` e gera `docs/data/bertopic-model.json`. Ele nao roda
+na atualizacao diaria porque baixa dependencias e embeddings grandes. Quando o
+arquivo existir, o painel mostra uma aba BERTopic ao lado do baseline por
+descritores oficiais.

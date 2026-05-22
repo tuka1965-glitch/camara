@@ -2,11 +2,92 @@ const state = {
   data: null,
   filtered: [],
   topicModel: null,
+  bertopicModel: null,
+  activeClusterModel: "official",
 };
 
 const collator = new Intl.Collator("pt-BR");
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" });
 const monthFormatter = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" });
+const genericDescriptors = new Set([
+  "alteracao",
+  "criacao",
+  "criterio",
+  "diretrizes",
+  "obrigatoriedade",
+  "proibicao",
+  "sustacao",
+  "lei federal",
+  "decreto legislativo",
+  "lei",
+  "programa",
+  "dezembro",
+  "pessoa",
+  "servico",
+  "servicos",
+  "oficial",
+  "parecer",
+  "aprovacao",
+  "submete",
+  "constante",
+  "congresso",
+  "susta",
+  "resolucao",
+  "requerimento",
+  "retirada",
+  "pauta",
+  "votacao",
+  "nominal",
+  "informacoes",
+  "ministro",
+  "ministra",
+  "materia",
+  "plenario",
+  "comissao",
+]);
+const descriptorStopwords = new Set([
+  "sobre",
+  "para",
+  "pela",
+  "pelo",
+  "pelos",
+  "pelas",
+  "como",
+  "dispoe",
+  "altera",
+  "alteracao",
+  "federal",
+  "nacional",
+  "brasil",
+  "brasileiro",
+  "brasileira",
+  "providencias",
+  "outras",
+  "forma",
+  "termos",
+  "institui",
+  "estabelece",
+  "cria",
+  "fica",
+  "lei",
+  "projeto",
+  "decreto",
+  "legislativo",
+  "complementar",
+  "constituicao",
+  "codigo",
+  "artigo",
+  "inciso",
+  "paragrafo",
+  "redacao",
+  "ambito",
+  "uniao",
+  "estado",
+  "municipio",
+  "publica",
+  "publico",
+  "administracao",
+]);
 
 function normalize(value) {
   return String(value ?? "")
@@ -59,6 +140,41 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function cleanDescriptor(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^_+/, "")
+    .replace(/[\.;:,\s]+$/g, "");
+}
+
+function descriptorTokens(value) {
+  return normalize(value)
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length >= 4 && !descriptorStopwords.has(token) && !/^\d+$/.test(token));
+}
+
+function informativeKeyword(value) {
+  const display = cleanDescriptor(value);
+  const normalized = normalize(display).replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  const tokens = descriptorTokens(display);
+  if (!display || !normalized || genericDescriptors.has(normalized)) return null;
+  if (tokens.length < 2) return null;
+  return display;
+}
+
+function countKeywords(items) {
+  const map = new Map();
+  for (const item of items) {
+    for (const keyword of item.keywords) {
+      const display = informativeKeyword(keyword);
+      if (!display) continue;
+      map.set(display, (map.get(display) ?? 0) + 1);
+    }
+  }
+  return [...map.entries()].sort((a, b) => b[1] - a[1] || collator.compare(a[0], b[0]));
+}
+
 function renderSummary(items) {
   const themes = countBy(items, (item) => item.temas);
   const authors = countBy(items, (item) => item.autores.map((author) => author.nome));
@@ -108,7 +224,7 @@ function renderThemeRanking(items) {
 
 function renderSubthemes(items) {
   const selectedTheme = document.querySelector("#theme-filter").value;
-  const subthemes = countBy(items, (item) => item.keywords).slice(0, 18);
+  const subthemes = countKeywords(items).slice(0, 18);
   const max = subthemes[0]?.[1] ?? 1;
   const context = selectedTheme
     ? `${subthemes.length} keywords em ${selectedTheme}`
@@ -224,14 +340,37 @@ function renderPropositions(items) {
 function renderTopicClusters() {
   const container = document.querySelector("#clusters-list");
   const context = document.querySelector("#clusters-context");
-  if (!state.topicModel?.clusters?.length) {
+  const tabs = document.querySelector("#cluster-tabs");
+  const models = [
+    ["official", "Descritores oficiais", state.topicModel],
+    ["bertopic", "BERTopic", state.bertopicModel],
+  ].filter(([, , model]) => model?.clusters?.length);
+  const activeModel = models.find(([id]) => id === state.activeClusterModel)?.[2] ?? models[0]?.[2];
+
+  tabs.innerHTML = models
+    .map(
+      ([id, label]) => `
+        <button class="tab-button ${activeModel === (id === "official" ? state.topicModel : state.bertopicModel) ? "is-active" : ""}" type="button" data-model="${id}">
+          ${escapeHtml(label)}
+        </button>
+      `,
+    )
+    .join("");
+  document.querySelectorAll("#cluster-tabs .tab-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeClusterModel = button.dataset.model;
+      renderTopicClusters();
+    });
+  });
+
+  if (!activeModel?.clusters?.length) {
     context.textContent = "Aguardando geracao do modelo";
     container.innerHTML = `<p class="empty">Ainda nao ha clusters gerados.</p>`;
     return;
   }
 
-  context.textContent = `${state.topicModel.clusters.length} clusters; ${state.topicModel.corpus.documents.toLocaleString("pt-BR")} ementas`;
-  container.innerHTML = state.topicModel.clusters
+  context.textContent = `${activeModel.clusters.length} clusters; ${activeModel.corpus.documents.toLocaleString("pt-BR")} ementas`;
+  container.innerHTML = activeModel.clusters
     .slice(0, 12)
     .map((cluster) => {
       const terms = cluster.topTerms.slice(0, 6).map((term) => `<span class="chip">${escapeHtml(term)}</span>`).join("");
@@ -302,12 +441,14 @@ function hydrateFilters(data) {
 }
 
 async function main() {
-  const [response, topicResponse] = await Promise.all([
+  const [response, topicResponse, bertopicResponse] = await Promise.all([
     fetch("./data/proposicoes.json", { cache: "no-store" }),
     fetch("./data/topic-model.json", { cache: "no-store" }).catch(() => null),
+    fetch("./data/bertopic-model.json", { cache: "no-store" }).catch(() => null),
   ]);
   const data = await response.json();
   state.topicModel = topicResponse?.ok ? await topicResponse.json() : null;
+  state.bertopicModel = bertopicResponse?.ok ? await bertopicResponse.json() : null;
   state.data = {
     ...data,
     proposicoes: data.proposicoes.map((item) => ({

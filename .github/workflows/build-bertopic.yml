@@ -1,0 +1,26 @@
+name: Gerar BERTopic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bertopic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements-bertopic.txt
+      - name: Gerar topicos BERTopic
+        run: python scripts/build-bertopic.py
+      - name: Commitar resultado
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Atualiza topicos BERTopic"
+          file_pattern: docs/data/bertopic-model.json
