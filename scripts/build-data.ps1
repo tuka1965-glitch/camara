@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $Years = @(2025, 2026)
-$RowsPerMonth = 10000
+$IncludedTypes = @("PL", "PLP", "PEC", "PDL", "PRC", "MPV", "PLV", "PLN")
 $BaseUrl = "http://dadosabertos.camara.leg.br/arquivos"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $OutDir = Join-Path $Root "docs\data"
@@ -91,7 +91,6 @@ function Get-DateOnly {
 $selectedRows = New-Object System.Collections.ArrayList
 $selectedIds = New-Object System.Collections.Generic.HashSet[string]
 $typeDescriptions = @{}
-$monthCounts = @{}
 $monthlyTotals = @{}
 $yearSet = New-Object System.Collections.Generic.HashSet[string]
 foreach ($year in $Years) {
@@ -100,13 +99,18 @@ foreach ($year in $Years) {
 
 foreach ($year in $Years) {
   $file = Get-CsvFile -Kind "proposicoes" -Year $year
-  Write-Host "Selecionando proposicoes de $year por mes"
+  Write-Host "Selecionando proposicoes legislativas de $year com ementa"
 
   Import-Csv -Path $file -Delimiter ";" | ForEach-Object {
     $id = Get-PropositionId -Row $_
     $date = Get-DateOnly -Value (Get-FirstValue -Row $_ -Names @("dataApresentacao"))
     $ementa = Get-FirstValue -Row $_ -Names @("ementa")
     if (-not $id -or -not $date -or [string]::IsNullOrWhiteSpace($ementa)) {
+      return
+    }
+
+    $siglaTipo = Get-FirstValue -Row $_ -Names @("siglaTipo")
+    if (-not ($IncludedTypes -contains $siglaTipo)) {
       return
     }
 
@@ -121,21 +125,13 @@ foreach ($year in $Years) {
     }
     $monthlyTotals[$month] += 1
 
-    if (-not $monthCounts.ContainsKey($month)) {
-      $monthCounts[$month] = 0
-    }
-
-    $siglaTipo = Get-FirstValue -Row $_ -Names @("siglaTipo")
     $descricaoTipo = Get-FirstValue -Row $_ -Names @("descricaoTipo")
     if ($siglaTipo -and $descricaoTipo -and -not $typeDescriptions.ContainsKey($siglaTipo)) {
       $typeDescriptions[$siglaTipo] = $descricaoTipo
     }
 
-    if ($monthCounts[$month] -lt $RowsPerMonth) {
-      [void] $selectedRows.Add($_)
-      [void] $selectedIds.Add($id)
-      $monthCounts[$month] += 1
-    }
+    [void] $selectedRows.Add($_)
+    [void] $selectedIds.Add($id)
   }
 }
 
@@ -177,6 +173,8 @@ foreach ($year in $Years) {
 
       $author = New-Object PSObject
       $author | Add-Member -MemberType NoteProperty -Name "nome" -Value $name
+      $author | Add-Member -MemberType NoteProperty -Name "partido" -Value (Get-FirstValue -Row $_ -Names @("siglaPartidoAutor", "siglaPartido", "partido"))
+      $author | Add-Member -MemberType NoteProperty -Name "uf" -Value (Get-FirstValue -Row $_ -Names @("siglaUFAutor", "siglaUF", "uf"))
       [void] $authorsById[$id].Add($author)
     }
   }
@@ -234,9 +232,10 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 [ordered]@{
   generatedAt = (Get-Date).ToUniversalTime().ToString("o")
   years = $Years
-  sampling = [ordered]@{
-    strategy = "Amostra balanceada por mes, apenas proposicoes com ementa"
-    rowsPerMonth = $RowsPerMonth
+  selection = [ordered]@{
+    strategy = "Universo de proposicoes legislativas com ementa no periodo"
+    requiresEmenta = $true
+    includedTypes = $IncludedTypes
   }
   source = "Dados Abertos da Camara dos Deputados"
   monthlyTotals = $monthlyTotalsRows

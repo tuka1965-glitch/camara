@@ -126,6 +126,12 @@ function setOptions(select, values, label) {
     .join("");
 }
 
+function setMultiOptions(select, values) {
+  select.innerHTML = values
+    .map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)
+    .join("");
+}
+
 function setLabeledOptions(select, entries, label) {
   select.innerHTML = [`<option value="">${label}</option>`]
     .concat(
@@ -134,6 +140,16 @@ function setLabeledOptions(select, entries, label) {
       ),
     )
     .join("");
+}
+
+function setMultiLabeledOptions(select, entries) {
+  select.innerHTML = entries
+    .map(([value, text]) => `<option value="${escapeHtml(value)}">${escapeHtml(text)}</option>`)
+    .join("");
+}
+
+function selectedValues(select) {
+  return [...select.selectedOptions].map((option) => option.value).filter(Boolean);
 }
 
 function escapeHtml(value) {
@@ -341,7 +357,9 @@ function renderPropositions(items) {
   const topItems = items.slice(0, 80);
   const html = topItems
     .map((item) => {
-      const autores = item.autores.map((author) => author.nome).join(", ") || "Autoria nao informada";
+      const autores = item.autores
+        .map((author) => [author.nome, author.partido].filter(Boolean).join(" - "))
+        .join(", ") || "Autoria nao informada";
       const themes = item.temas.slice(0, 4).map((theme) => `<span class="chip">${escapeHtml(theme)}</span>`).join("");
       const keywords = item.keywords.slice(0, 5).map((keyword) => `<span class="chip">${escapeHtml(keyword)}</span>`).join("");
       return `
@@ -461,6 +479,95 @@ function renderTopicClusters() {
     .join("");
 }
 
+function clusterYearRows(model, selectedItems, years) {
+  if (!model?.clusters?.length || !years.length) {
+    return [];
+  }
+
+  const selectedById = new Map(selectedItems.map((item) => [String(item.id), item]));
+  return model.clusters
+    .map((cluster) => {
+      if (!cluster.memberIds?.length) {
+        return null;
+      }
+      const counts = Object.fromEntries(years.map((year) => [year, 0]));
+      for (const id of cluster.memberIds) {
+        const item = selectedById.get(String(id));
+        if (!item) continue;
+        const year = String(item.ano);
+        if (year in counts) {
+          counts[year] += 1;
+        }
+      }
+      const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+      if (!total) {
+        return null;
+      }
+      return {
+        label: cluster.label,
+        terms: cluster.topTerms?.slice(0, 3).join(", ") ?? "",
+        total,
+        counts,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 14);
+}
+
+function renderClusterYearTable(container, rows, years) {
+  if (!rows.length) {
+    container.innerHTML = `<p class="empty">Nao ha clusters com proposicoes neste recorte.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="metric-table">
+      <thead>
+        <tr>
+          <th>Cluster</th>
+          ${years.map((year) => `<th>${escapeHtml(year)}</th>`).join("")}
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows
+          .map(
+            (row) => `
+              <tr>
+                <td>
+                  <strong>${escapeHtml(row.label)}</strong>
+                  <span>${escapeHtml(row.terms)}</span>
+                </td>
+                ${years.map((year) => `<td>${row.counts[year].toLocaleString("pt-BR")}</td>`).join("")}
+                <td>${row.total.toLocaleString("pt-BR")}</td>
+              </tr>
+            `,
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderClusterYearTables() {
+  const years = [...new Set(state.filtered.map((item) => String(item.ano)))].sort();
+  document.querySelector("#cluster-years-context").textContent = years.length
+    ? `${years.join(", ")}; ${state.filtered.length.toLocaleString("pt-BR")} proposicoes no recorte`
+    : "Sem proposicoes no recorte";
+
+  renderClusterYearTable(
+    document.querySelector("#official-year-table"),
+    clusterYearRows(state.topicModel, state.filtered, years),
+    years,
+  );
+  renderClusterYearTable(
+    document.querySelector("#bertopic-year-table"),
+    clusterYearRows(state.bertopicModel, state.filtered, years),
+    years,
+  );
+}
+
 function renderTuningTable() {
   const context = document.querySelector("#tuning-context");
   const container = document.querySelector("#tuning-table");
@@ -516,15 +623,17 @@ function renderTuningTable() {
 
 function applyFilters() {
   const query = normalize(document.querySelector("#search").value);
-  const year = document.querySelector("#year-filter").value;
-  const type = document.querySelector("#type-filter").value;
+  const years = selectedValues(document.querySelector("#year-filter"));
+  const types = selectedValues(document.querySelector("#type-filter"));
+  const parties = selectedValues(document.querySelector("#party-filter"));
   const theme = document.querySelector("#theme-filter").value;
   const author = document.querySelector("#author-filter").value;
   const normalizedAuthor = normalize(author);
 
   state.filtered = state.data.proposicoes.filter((item) => {
-    if (year && String(item.ano) !== year) return false;
-    if (type && item.siglaTipo !== type) return false;
+    if (years.length && !years.includes(String(item.ano))) return false;
+    if (types.length && !types.includes(item.siglaTipo)) return false;
+    if (parties.length && !item.autores.some((entry) => parties.includes(entry.partido))) return false;
     if (theme && !item.temas.includes(theme)) return false;
     if (normalizedAuthor && !item.autores.some((entry) => normalize(entry.nome).includes(normalizedAuthor))) return false;
     if (!query) return true;
@@ -536,6 +645,7 @@ function applyFilters() {
   renderSubthemes(state.filtered);
   renderChart(state.filtered);
   renderTopicClusters();
+  renderClusterYearTables();
   renderTuningTable();
   renderPropositions(state.filtered);
 }
@@ -548,12 +658,15 @@ function hydrateFilters(data) {
     const description = data.typeDescriptions?.[type];
     return [type, description ? `${type} - ${description}` : type];
   });
+  const parties = [...new Set(data.proposicoes.flatMap((item) => item.autores.map((author) => author.partido).filter(Boolean)))]
+    .sort(collator.compare);
   const authors = countBy(data.proposicoes, (item) => item.autores.map((author) => author.nome))
     .map(([name]) => name);
 
-  setOptions(document.querySelector("#year-filter"), years, "Todos");
-  setLabeledOptions(document.querySelector("#type-filter"), typeEntries, "Todos");
+  setMultiOptions(document.querySelector("#year-filter"), years);
+  setMultiLabeledOptions(document.querySelector("#type-filter"), typeEntries);
   setOptions(document.querySelector("#theme-filter"), themes, "Todos");
+  setMultiOptions(document.querySelector("#party-filter"), parties);
   document.querySelector("#author-options").innerHTML = authors
     .map((name) => `<option value="${escapeHtml(name)}"></option>`)
     .join("");
@@ -593,6 +706,7 @@ async function main() {
           item.keywords.join(" "),
           item.temas.join(" "),
           item.autores.map((author) => author.nome).join(" "),
+          item.autores.map((author) => author.partido).join(" "),
         ].join(" "),
       ),
     })),

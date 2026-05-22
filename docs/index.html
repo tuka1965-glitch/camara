@@ -28,15 +28,19 @@
         </label>
         <label>
           <span>Ano</span>
-          <select id="year-filter"></select>
+          <select id="year-filter" multiple size="2"></select>
         </label>
         <label>
           <span>Tipo</span>
-          <select id="type-filter"></select>
+          <select id="type-filter" multiple size="4"></select>
         </label>
         <label>
           <span>Tema</span>
           <select id="theme-filter"></select>
+        </label>
+        <label>
+          <span>Partido</span>
+          <select id="party-filter" multiple size="4"></select>
         </label>
         <label>
           <span>Autor</span>
@@ -77,6 +81,23 @@
           </div>
           <div id="cluster-tabs" class="tab-row"></div>
           <div id="clusters-list" class="cluster-grid"></div>
+        </section>
+
+        <section class="panel wide">
+          <div class="panel-header split">
+            <h2>Clusters por ano</h2>
+            <span id="cluster-years-context"></span>
+          </div>
+          <div class="year-table-grid">
+            <div>
+              <h3>Descritores oficiais</h3>
+              <div id="official-year-table" class="table-shell"></div>
+            </div>
+            <div>
+              <h3>BERTopic</h3>
+              <div id="bertopic-year-table" class="table-shell"></div>
+            </div>
+          </div>
         </section>
 
         <section class="panel wide">

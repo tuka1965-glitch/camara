@@ -100,7 +100,7 @@ a {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(140px, 1fr));
+  grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(130px, 1fr));
   gap: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -129,6 +129,10 @@ select {
   color: var(--ink);
   font: inherit;
   padding: 8px 10px;
+}
+
+select[multiple] {
+  min-height: 74px;
 }
 
 .content-grid {
@@ -170,6 +174,11 @@ select {
 }
 
 #clusters-context {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#cluster-years-context {
   color: var(--muted);
   font-size: 13px;
 }
@@ -452,6 +461,19 @@ button.rank-item:hover .rank-name {
   padding: 16px 18px 18px;
 }
 
+.year-table-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.year-table-grid h3 {
+  margin: 0;
+  padding: 0 18px;
+  font-size: 15px;
+}
+
 .metric-table {
   width: 100%;
   min-width: 760px;
@@ -508,6 +530,10 @@ button.rank-item:hover .rank-name {
 
   .toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .year-table-grid {
+    grid-template-columns: 1fr;
   }
 }
 
