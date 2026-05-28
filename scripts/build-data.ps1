@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$Years = @(2025, 2026)
+$Years = @(2024, 2025, 2026)
 $IncludedTypes = @("PL", "PLP", "PEC", "PDL", "PRC", "MPV", "PLV", "PLN")
 $BaseUrl = "http://dadosabertos.camara.leg.br/arquivos"
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")

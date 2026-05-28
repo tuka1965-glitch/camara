@@ -152,6 +152,10 @@ function selectedValues(select) {
   return [...select.selectedOptions].map((option) => option.value).filter(Boolean);
 }
 
+function selectedTexts(selector) {
+  return [...document.querySelector(selector).selectedOptions].map((option) => option.textContent).filter(Boolean);
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -550,6 +554,45 @@ function renderClusterYearTable(container, rows, years) {
   `;
 }
 
+function clusterYearReportTable(title, rows, years) {
+  if (!rows.length) {
+    return `
+      <section class="report-section">
+        <h2>${escapeHtml(title)}</h2>
+        <p>Nao ha clusters com proposicoes neste recorte.</p>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="report-section">
+      <h2>${escapeHtml(title)}</h2>
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>Cluster</th>
+            ${years.map((year) => `<th>${escapeHtml(year)}</th>`).join("")}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (row) => `
+                <tr>
+                  <td>${escapeHtml(row.label)}</td>
+                  ${years.map((year) => `<td>${row.counts[year].toLocaleString("pt-BR")}</td>`).join("")}
+                  <td>${row.total.toLocaleString("pt-BR")}</td>
+                </tr>
+              `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </section>
+  `;
+}
+
 function renderClusterYearTables() {
   const years = [...new Set(state.filtered.map((item) => String(item.ano)))].sort();
   document.querySelector("#cluster-years-context").textContent = years.length
@@ -566,6 +609,62 @@ function renderClusterYearTables() {
     clusterYearRows(state.bertopicModel, state.filtered, years),
     years,
   );
+}
+
+function renderPdfReport() {
+  const years = [...new Set(state.filtered.map((item) => String(item.ano)))].sort();
+  const themes = countBy(state.filtered, (item) => item.temas).slice(0, 12);
+  const officialRows = clusterYearRows(state.topicModel, state.filtered, years);
+  const bertopicRows = clusterYearRows(state.bertopicModel, state.filtered, years);
+  const filters = [
+    ["Anos", selectedTexts("#year-filter").join(", ") || "Todos"],
+    ["Tipos", selectedTexts("#type-filter").join(", ") || "Todos"],
+    ["Tema", document.querySelector("#theme-filter").selectedOptions[0]?.textContent || "Todos"],
+    ["Partidos", selectedTexts("#party-filter").join(", ") || "Todos"],
+    ["Autor", document.querySelector("#author-filter").value || "Todos"],
+    ["Busca", document.querySelector("#search").value || "Sem busca"],
+  ];
+  const authors = countBy(state.filtered, (item) => item.autores.map((author) => author.nome));
+
+  document.querySelector("#pdf-report").innerHTML = `
+    <article class="report-page">
+      <h1>Radar Legislativo - Camara dos Deputados</h1>
+      <p class="report-meta">Relatorio gerado em ${escapeHtml(new Date().toLocaleString("pt-BR"))}</p>
+      <section class="report-section">
+        <h2>Filtros</h2>
+        <table class="report-table">
+          <tbody>
+            ${filters.map(([label, value]) => `<tr><td>${escapeHtml(label)}</td><td>${escapeHtml(value)}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      </section>
+      <section class="report-section">
+        <h2>Resumo</h2>
+        <div class="report-grid">
+          <div class="report-card"><span>Proposicoes</span><strong>${state.filtered.length.toLocaleString("pt-BR")}</strong></div>
+          <div class="report-card"><span>Temas oficiais</span><strong>${countBy(state.filtered, (item) => item.temas).length.toLocaleString("pt-BR")}</strong></div>
+          <div class="report-card"><span>Autores</span><strong>${authors.length.toLocaleString("pt-BR")}</strong></div>
+          <div class="report-card"><span>Tema lider</span><strong>${escapeHtml(themes[0]?.[0] ?? "-")}</strong></div>
+        </div>
+      </section>
+      <section class="report-section">
+        <h2>Temas oficiais mais frequentes</h2>
+        <table class="report-table">
+          <thead><tr><th>Tema</th><th>Proposicoes</th></tr></thead>
+          <tbody>
+            ${themes.map(([theme, count]) => `<tr><td>${escapeHtml(theme)}</td><td>${count.toLocaleString("pt-BR")}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      </section>
+      ${clusterYearReportTable("Clusters por ano - descritores oficiais", officialRows, years)}
+      ${clusterYearReportTable("Clusters por ano - BERTopic", bertopicRows, years)}
+    </article>
+  `;
+}
+
+function exportPdfReport() {
+  renderPdfReport();
+  window.print();
 }
 
 function renderTuningTable() {
@@ -675,6 +774,7 @@ function hydrateFilters(data) {
     element.addEventListener("input", applyFilters);
     element.addEventListener("change", applyFilters);
   });
+  document.querySelector("#export-pdf").addEventListener("click", exportPdfReport);
 }
 
 async function main() {

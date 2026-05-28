@@ -70,6 +70,16 @@ a {
   color: var(--accent);
 }
 
+.link-button {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -463,7 +473,7 @@ button.rank-item:hover .rank-name {
 
 .year-table-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 14px;
   padding-top: 8px;
 }
@@ -514,6 +524,76 @@ button.rank-item:hover .rank-name {
   background: var(--accent-soft);
 }
 
+.pdf-report {
+  display: none;
+}
+
+.report-page {
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.report-page h1 {
+  font-size: 26px;
+  margin-bottom: 4px;
+}
+
+.report-page h2 {
+  border-bottom: 1px solid #d7dee6;
+  font-size: 17px;
+  margin: 22px 0 10px;
+  padding-bottom: 6px;
+}
+
+.report-meta {
+  color: #4b5563;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.report-card {
+  border: 1px solid #d7dee6;
+  padding: 10px;
+}
+
+.report-card span {
+  color: #4b5563;
+  display: block;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.report-card strong {
+  font-size: 18px;
+}
+
+.report-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 14px;
+  width: 100%;
+}
+
+.report-table th,
+.report-table td {
+  border-bottom: 1px solid #d7dee6;
+  padding: 6px;
+  text-align: right;
+  vertical-align: top;
+}
+
+.report-table th:first-child,
+.report-table td:first-child {
+  text-align: left;
+}
+
 @media (max-width: 960px) {
   .page-header,
   .content-grid {
@@ -532,9 +612,6 @@ button.rank-item:hover .rank-name {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .year-table-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 620px) {
@@ -549,5 +626,28 @@ button.rank-item:hover .rank-name {
 
   .chart-shell {
     height: 300px;
+  }
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+    size: A4;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .page-shell {
+    display: none;
+  }
+
+  .pdf-report {
+    display: block;
+  }
+
+  .report-section {
+    break-inside: avoid;
   }
 }
