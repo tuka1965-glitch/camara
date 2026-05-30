@@ -6,6 +6,7 @@ const state = {
   bertopicEvaluation: null,
   bertopicCrossEntropy: null,
   bertopicTuning: null,
+  showTuning: false,
   activeClusterModel: "official",
 };
 
@@ -126,9 +127,9 @@ function setOptions(select, values, label) {
     .join("");
 }
 
-function setMultiOptions(select, values) {
-  select.innerHTML = values
-    .map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)
+function setMultiOptions(select, values, label = null) {
+  select.innerHTML = (label ? [`<option value="">${label}</option>`] : [])
+    .concat(values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`))
     .join("");
 }
 
@@ -142,18 +143,22 @@ function setLabeledOptions(select, entries, label) {
     .join("");
 }
 
-function setMultiLabeledOptions(select, entries) {
-  select.innerHTML = entries
-    .map(([value, text]) => `<option value="${escapeHtml(value)}">${escapeHtml(text)}</option>`)
+function setMultiLabeledOptions(select, entries, label = null) {
+  select.innerHTML = (label ? [`<option value="">${label}</option>`] : [])
+    .concat(entries.map(([value, text]) => `<option value="${escapeHtml(value)}">${escapeHtml(text)}</option>`))
     .join("");
 }
 
 function selectedValues(select) {
-  return [...select.selectedOptions].map((option) => option.value).filter(Boolean);
+  const values = [...select.selectedOptions].map((option) => option.value);
+  return values.includes("") ? [] : values.filter(Boolean);
 }
 
 function selectedTexts(selector) {
-  return [...document.querySelector(selector).selectedOptions].map((option) => option.textContent).filter(Boolean);
+  const options = [...document.querySelector(selector).selectedOptions];
+  return options.some((option) => option.value === "")
+    ? []
+    : options.map((option) => option.textContent).filter(Boolean);
 }
 
 function escapeHtml(value) {
@@ -593,6 +598,49 @@ function clusterYearReportTable(title, rows, years) {
   `;
 }
 
+function tuningReportTable() {
+  const rows = state.bertopicTuning?.configs ?? [];
+  if (!state.showTuning || !rows.length) {
+    return "";
+  }
+
+  return `
+    <section class="report-section">
+      <h2>Tuning BERTopic</h2>
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>Configuracao</th>
+            <th>Clusters</th>
+            <th>Outliers</th>
+            <th>Pureza</th>
+            <th>Entropia</th>
+            <th>Perplexidade</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .slice()
+            .sort((a, b) => a.crossEntropyNats - b.crossEntropyNats)
+            .map(
+              (row) => `
+                <tr>
+                  <td>${escapeHtml(row.name)}</td>
+                  <td>${row.clusters.toLocaleString("pt-BR")}</td>
+                  <td>${row.outliers.toLocaleString("pt-BR")}</td>
+                  <td>${Math.round(row.weightedPurity * 100)}%</td>
+                  <td>${row.crossEntropyNats.toLocaleString("pt-BR")}</td>
+                  <td>${row.perplexity.toLocaleString("pt-BR")}</td>
+                </tr>
+              `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </section>
+  `;
+}
+
 function renderClusterYearTables() {
   const years = [...new Set(state.filtered.map((item) => String(item.ano)))].sort();
   document.querySelector("#cluster-years-context").textContent = years.length
@@ -658,6 +706,7 @@ function renderPdfReport() {
       </section>
       ${clusterYearReportTable("Clusters por ano - descritores oficiais", officialRows, years)}
       ${clusterYearReportTable("Clusters por ano - BERTopic", bertopicRows, years)}
+      ${tuningReportTable()}
     </article>
   `;
 }
@@ -670,7 +719,17 @@ function exportPdfReport() {
 function renderTuningTable() {
   const context = document.querySelector("#tuning-context");
   const container = document.querySelector("#tuning-table");
+  const toggle = document.querySelector("#toggle-tuning");
   const rows = state.bertopicTuning?.configs ?? [];
+  container.classList.toggle("is-hidden", !state.showTuning);
+  toggle.textContent = state.showTuning ? "Ocultar tabela" : "Mostrar tabela";
+  toggle.setAttribute("aria-expanded", String(state.showTuning));
+
+  if (!state.showTuning) {
+    context.textContent = rows.length ? `${rows.length} configuracoes disponiveis` : "Aguardando workflow de tuning";
+    container.innerHTML = "";
+    return;
+  }
 
   if (!rows.length) {
     context.textContent = "Aguardando workflow de tuning";
@@ -763,9 +822,9 @@ function hydrateFilters(data) {
     .map(([name]) => name);
 
   setMultiOptions(document.querySelector("#year-filter"), years);
-  setMultiLabeledOptions(document.querySelector("#type-filter"), typeEntries);
+  setMultiLabeledOptions(document.querySelector("#type-filter"), typeEntries, "Todos");
   setOptions(document.querySelector("#theme-filter"), themes, "Todos");
-  setMultiOptions(document.querySelector("#party-filter"), parties);
+  setMultiOptions(document.querySelector("#party-filter"), parties, "Todos");
   document.querySelector("#author-options").innerHTML = authors
     .map((name) => `<option value="${escapeHtml(name)}"></option>`)
     .join("");
@@ -775,6 +834,10 @@ function hydrateFilters(data) {
     element.addEventListener("change", applyFilters);
   });
   document.querySelector("#export-pdf").addEventListener("click", exportPdfReport);
+  document.querySelector("#toggle-tuning").addEventListener("click", () => {
+    state.showTuning = !state.showTuning;
+    renderTuningTable();
+  });
 }
 
 async function main() {
